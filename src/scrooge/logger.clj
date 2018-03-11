@@ -21,12 +21,12 @@
   (try
     (let [m (qc/from-job-data ctx)
           {:strs [conn dir]} m
-          coll (binance/exchange-stats! conn "BTC")
+          stats (binance/exchange-stats! conn "BTC")
           date (System/currentTimeMillis)
           fname (str date ".edn.gz")
           mm {:dump/timestamp date :dump/interval (* 5 60 1000)}]
       (info "New dump in:" fname)
-      (sio/store-coll dir fname mm coll))
+      (sio/store-map dir fname mm stats))
     (catch Exception e
       (.printStackTrace e)
       (error "Exception:" e))))

@@ -17,13 +17,15 @@
   (assoc frame :frame/timestamp (now)))
 
 (defn assoc-wealth
-  [frame]
-  (let [{:keys [:frame/stats :frame/wallet]} frame
-        mf (fn [[sym v]]
-             (if (= "BTC" sym)
-               v
-               (* v (:coin/ask-price (get stats sym)))))]
-    (assoc frame :frame/wealth (reduce + (map mf wallet)))))
+  ([frame]
+   (assoc-wealth frame (:frame/stats frame)))
+  ([frame stats]
+   (let [{:keys [:frame/wallet]} frame
+         mf (fn [[sym v]]
+              (if (= "BTC" sym)
+                v
+                (* v (:coin/ask-price (get stats sym)))))]
+     (assoc frame :frame/wealth (reduce + (map mf wallet))))))
 
 (defn archive-orders
   [frame]

@@ -3,7 +3,9 @@
 (ns scrooge.io
   "I/O utils"
   {:authors ["Jozef Wagner"]}
-  (:require [clojure.java.io :as io]))
+  (:require [clojure.edn :as edn]
+            [clojure.java.io :as io]
+            [taoensso.timbre :refer [debug info warn error]]))
 
 
 ;;;; Implementation details
@@ -22,8 +24,8 @@
 
 ;;;; Public API
 
-(defn store-coll
-  [dir fname m coll]
+(defn store-map
+  [dir fname meta-m m]
   (let [file (io/file dir fname)
         _ (io/make-parents file)
         wr (-> file
@@ -31,10 +33,51 @@
                java.util.zip.GZIPOutputStream.
                (java.io.OutputStreamWriter. "UTF-8")
                java.io.BufferedWriter.)]
-    (.write wr (print* m))
+    (.write wr (print* meta-m))
     (.write wr (int \newline))
-    (doseq [x coll]
+    (doseq [x m]
       (.write wr (print* x))
       (.write wr (int \newline)))
     (.close wr)
     nil))
+
+(defn fetch-map
+  [f]
+  (try
+    (let [coll (when (.isFile f)
+                 (let [r (-> f
+                             io/input-stream
+                             java.util.zip.GZIPInputStream.
+                             io/reader
+                             java.io.PushbackReader.)
+                       ff (fn ff []
+                            (lazy-seq
+                             (let [x (edn/read {:eof ::done} r)]
+                               (if (identical? ::done x)
+                                 (do (.close r) nil)
+                                 (cons x (ff))))))]
+                   (ff)))
+          mm (first coll)
+          coll (rest coll)]
+      (with-meta (into {} coll) mm))
+    (catch Exception e
+      (.printStackTrace e)
+      (error "Exception:" e))))
+
+(defn list-dir
+  [dir]
+  (let [coll (file-seq (io/file dir))
+        coll (filter #(.isFile %) coll)
+        coll (sort-by #(.getName %) coll)]
+    coll))
+
+
+;;;; Scratch
+
+(comment
+
+  (first
+   (for [f (list-dir "ec2")]
+     (fetch-map f)))
+
+)
